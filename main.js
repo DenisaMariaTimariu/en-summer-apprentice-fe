@@ -1,114 +1,38 @@
-// Imports
-import { addEvents, handleSearch } from './src/utils';
-import { createOrderItem } from './src/components/createOrderItem.js';
-import { getTicketCategories } from './src/components/api/getTicketCategories.js';
-import { removeLoader, addLoader } from './src/components/loader';
-import './src/mocks/handlers';
-
-let events = null;
+import { useStyle } from "./src/components/styles";
+import { kebabCase } from "./src/utils";
 
 // Navigate to a specific URL
-function navigateTo(url) {
+function navigateTo(url) { 
   history.pushState(null, null, url);
   renderContent(url);
 }
 // HTML templates
-function getHomePageTemplate() {
+function getHomePageTemplate() { 
   return `
-   <div id="content" class="hidden">
-      <img src="./src/assets/Endava.png" alt="summer">
-      <div class="flex flex-col items-center">
-        <div class="w-80">
-          <h1>Explore Events</h1>
-          <div class="filters flex flex-col">
-            <input type="text" id="filter-name" placeholder="Filter by name" class="px-4 mt-4 mb-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            <button id="filter-button" class="px-4 py-2 text-white filter-btn rounded-lg">Filter</button>
-          </div>
-        </div>
-      </div>
+  
+  <h1 class="text-2xl mb-4 mt-8 text-top" style="font-style:italic;">Welcome!</h1>
+   <div id="content" >
       <div class="events flex items-center justify-center flex-wrap">
+
       </div>
-      <div class="cart"></div>
     </div>
   `;
 }
 
-function getOrdersPageTemplate() {
+function getOrdersPageTemplate() { 
   return `
-      <div id="content" class="hidden">
-        <h1 class="text-2xl mb-4 mt-8 text-center">Purchased Tickets</h1>
-        <div class="purchases ml-6 mr-6">
-          <div class="bg-white px-4 py-3 gap-x-4 flex font-bold">
-            <span class="flex-1">Name</span>
-            <span class="flex-1 flex justify-end">Nr tickets</span>
-            <span class="flex-1">Category</span>
-            <span class="flex-1 hidden md:flex">Date</span>
-            <span class="w-12 text-center hidden md:flex">Price</span>
-            <span class="w-28 sm:w-8"></span>
-          </div>
-        </div>
-      </div>
+    <div id="content">
+    <h1 class="text-2xl mb-4 mt-8 text-center">Purchased Tickets</h1>
+    </div>
   `;
 }
 
-function liveSearch() {
-  const filterInput = document.querySelector('#filter-name');
-
-  if(filterInput) {
-    const searchValue = filterInput.value;
-    
-    if(searchValue) {
-      const filteredEvents = events.filter(event => event.name.toLowerCase().includes(searchValue.toLowerCase()));
-    
-      addEvents(filteredEvents);
-    }
-  }
-
-}
-
-function setupFilterEvents() {
-  const nameFilterInput = document.querySelector('#filter-name');
-
-  if(nameFilterInput) {
-    const filterInterval = 500;
-
-    nameFilterInput.addEventListener('keyup', () => {
-      setTimeout(liveSearch, filterInterval);
-    });
-  }
-}
-
-function setupSearchEvents() {
-  const searchForm = document.querySelector('.search-form');
-  const searchInput = document.querySelector('.search-input');
-  const searchButton = document.querySelector('.search-button');
-  const eventSection = document.querySelector('.events');
-
-  
-  if(searchForm) {
-    searchForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const searchTerm = searchInput.value.trim().toLowerCase();
-      const resultsFound = await handleSearch(searchTerm);
-      if (!resultsFound) {
-        eventSection.innerHTML = 'No results found';
-      }
-    });
-  }
-
-  if(searchButton) {
-    searchButton.addEventListener('click', () => {
-      searchInput.classList.toggle('active');
-    });
-  }
-}
-
 function setupNavigationEvents() {
-  const navLinks = document.querySelectorAll('nav a');
+  const navLinks = document.querySelectorAll('nav a');//ia toate link-urile pe care le gaseste in parintele nav(index.html)
   navLinks.forEach((link) => {
-    link.addEventListener('click', (event) => {
-      event.preventDefault();
-      const href = link.getAttribute('href');
+    link.addEventListener('click', (event) => { //seteaza ce tip de event vrem, la click se intampla cv cand apas pe el
+      event.preventDefault();//daca apas pe ceva de pe pagina nu vr sa faca refresh ci sa ramana acolo
+      const href = link.getAttribute('href');//navigatie dinamica(in functie de ce alegem ni se incarca home sau orders)
       navigateTo(href);
     });
   });
@@ -137,59 +61,184 @@ function setupInitialPage() {
   renderContent(initialUrl);
 }
 
-async function fetchTicketEvents() {
-  const response = await fetch('/api/ticketEvents');
-  const data = await response.json();
-  return data;
-}
-
-async function fetchOrders() {
-  const response = await fetch('/api/orders');
-  const orders = await response.json();
-  return orders;
-}
-
 function renderHomePage() {
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = getHomePageTemplate();
 
-  setupFilterEvents();
-  setupSearchEvents();
-  addLoader();
+  fetchTicketEvents().then(data =>{
+    addEvents(data);
+  });
 
-  fetchTicketEvents()
-    .then((data) => {
-      events = data;
-      setTimeout(() => {
-        removeLoader();
-      }, 200);
-      addEvents(events);
-    });
+  }
+
+  async function fetchTicketEvents(){
+     const response =await fetch('https://localhost:44348/AllEvents');
+     
+     const data =await response.json();
+     console.log('data',data);
+     return data;
+  }
+
+  const addEvents = (events)=>{
+    console.log(events);
+    const eventsDiv = document.querySelector('.events');
+    events.innerHTML = 'No events';
+    if(events.length){
+      events.innerHTML = '';
+      events.forEach((event) =>{
+        eventsDiv.appendChild(createEvent(event));
+      });
+    }
+  };
+
+  
+  // Create the event card element
+  const createEvent = (eventData) => {
+      const eventElement =createEventElement(eventData);
+      return eventElement;
+      
+      
+  };
+
+  const createEventElement = (eventData) => {
+    const title = kebabCase(eventData.name);
+    const {eventId,name,eventDescription,eventType,location} = eventData;
+    const eventDiv = document.createElement('div');
+    const eventWrapperClasses = useStyle('eventWrapper');
+    const actionsWrapperClasses = useStyle('actionsWrapper');
+    const quantityClasses = useStyle('quantity');
+    const inputClasses = useStyle('input');
+    const quantityActionClasses = useStyle('quantityActions');
+    const increaseBtnClasses = useStyle('increaseBtn');
+    const decreaseBtnClasses = useStyle('decreaseBtn');
+    const addToCartBtnClasses = useStyle('addToCartBtn');
+
+    eventDiv.classList.add(...eventWrapperClasses);
+
+    const contentMarkup = `
+    <header>
+      <h2 class="event-title text-2xl font-bold" style="text-align: center;">${eventData.name}</h2>
+    </header>
+    <div class="content">
+      <img src="${eventData.img}" alt="${eventData.name}" class="event-image w-full height-200 rounded object-cover mb-4">
+      <p class="description text-gray-700">${eventData.eventDescription}</p>
+    </div>
+  `;
+  eventDiv.innerHTML = contentMarkup;
+
+  //Create ticket type selection and quantity input
+  const actions = document.createElement('div');
+  actions.classList.add(...actionsWrapperClasses);
+
+
+  const ticketTypeMarkup = `
+  <h2 class="text-lg font-bold mb-2">Choose Ticket Type</h2>
+  <select id="ticketType" name="ticketType" class="select ${title}-ticket-type border">
+    <option value="standard" selected="selected" >Standard</option> 
+    <option value="vip" >VIP</option>
+  </select>
+`;
+
+  actions.innerHTML = ticketTypeMarkup;
+
+  const quantity = document.createElement('div');
+  quantity.classList.add(...quantityClasses);
+
+  const input = document.createElement('input');
+  input.classList.add(...inputClasses);
+  input.type = 'number';
+  input.min = '0';
+  input.value = '0';
+
+  input.addEventListener('blur', () => {
+    if(!input.value){
+      input.value = 0;
+    }
+  });
+
+  
+  input.addEventListener('input', () => {
+    const currentQuantity = parseInt(input.value);
+    if(currentQuantity > 0){
+      addToCart.disabled = false;
+    }
+    else {
+      addToCart.disabled = true;
+    }
+  });
+
+  quantity.appendChild(input);
+
+  const quantityActions = document.createElement('div');
+  quantityActions.classList.add(...quantityActionClasses);
+
+  const increase = document.createElement('button');
+  increase.classList.add(...increaseBtnClasses);
+  increase.innerText = '+';
+  increase.addEventListener('click', () => {
+    input.value = parseInt(input.value) + 1;
+    const currentQuantity = parseInt(input.value);
+    if(currentQuantity>0){
+      addToCart.disabled = false;
+    }else{
+      addToCart.disabled = true;
+    }
+  });
+
+  const decrease = document.createElement('button');
+  decrease.classList.add(...decreaseBtnClasses);
+  decrease.innerText = '-';
+  decrease.addEventListener('click', () =>{
+    const currentValue = parseInt(input.value);
+    if(currentValue>0){
+      input.value = currentValue -1;
+
+    }
+    const currentQuantity = parseInt(input.value);
+    if(currentQuantity>0){
+      addToCart.disabled = false;
+    }else{
+      addToCart.disabled = true;
+    }
+  });
+
+  quantityActions.appendChild(increase);
+  quantityActions.appendChild(decrease);
+
+  quantity.appendChild(quantityActions);
+  actions.appendChild(quantity);
+  eventDiv.appendChild(actions);
+
+  // create the event footer with "Add to Cart" button
+  const eventFooter = document.createElement('footer');
+  const addToCart = document.createElement('button');
+  addToCart.classList.add(...addToCartBtnClasses);
+  addToCart.innerText = 'Add To Cart';
+  addToCart.disabled = true;
+
+  addToCart.addEventListener('click', () =>{
+
+  });
+
+  eventFooter.appendChild(addToCart);
+  eventDiv.appendChild(eventFooter);
+
+  const eventCard = document.createElement('div');
+  eventCard.classList.add('event-card'); 
+  // Create the event content markup
+ 
+  
+  const eventsContainer = document.querySelector('.events');
+  // Append the event card to the events container
+  eventsContainer.appendChild(eventCard);
+
+  return eventDiv;
+  
 }
 
 function renderOrdersPage(categories) {
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = getOrdersPageTemplate();
-
-  const purchasesDiv = document.querySelector('.purchases');
-  addLoader();
-
-  if (purchasesDiv) {
-    fetchOrders()
-      .then((orders) => {
-        if (orders.length > 0) {
-          setTimeout(() => {
-            removeLoader();
-          }, 200);
-          orders.forEach((order) => {
-            const newOrder = createOrderItem(categories, order);
-            purchasesDiv.appendChild(newOrder);
-          });
-        } else {
-          removeLoader();
-        }
-      });
-  }
 }
 
 // Render content based on URL
@@ -197,23 +246,14 @@ function renderContent(url) {
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = '';
 
-  if (url === '/') {
+  if (url === '/') {// === reprezinta egalitate perfecta
     renderHomePage();
   } else if (url === '/orders') {
-    getTicketCategories()
-      .then((categories) => {
-        renderOrdersPage(categories);
-      })
-      .catch((error) => {
-        console.error('Error fetching ticket categories:', error);
-      });
+    renderOrdersPage()
   }
 }
 
-
 // Call the setup functions
-setupFilterEvents();
-setupSearchEvents();
 setupNavigationEvents();
 setupMobileMenuEvent();
 setupPopstateEvent();
