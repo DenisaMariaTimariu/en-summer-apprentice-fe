@@ -1,5 +1,10 @@
 import { useStyle } from "./src/components/styles";
-import { kebabCase } from "./src/utils";
+import { addPurchase, kebabCase } from "./src/utils";
+import { removeLoader,addLoader } from "./src/loader";
+import { createOrderItem } from "./src/createOrderItem";
+
+
+let eventData = null;
 
 // Navigate to a specific URL
 function navigateTo(url) { 
@@ -9,11 +14,11 @@ function navigateTo(url) {
 // HTML templates
 function getHomePageTemplate() { 
   return `
-  
-  <h1 class="text-2xl mb-4 mt-8 text-top" style="font-style:italic;">Welcome!</h1>
+ 
    <div id="content" >
       <div class="events flex items-center justify-center flex-wrap">
-
+   
+</div>
       </div>
     </div>
   `;
@@ -21,8 +26,26 @@ function getHomePageTemplate() {
 
 function getOrdersPageTemplate() { 
   return `
-    <div id="content">
-    <h1 class="text-2xl mb-4 mt-8 text-center">Purchased Tickets</h1>
+    <div id="content" class='hidden'>
+      <h1 class="text-2xl mb-4 mt-8 text-center">Purchased Tickets</h1>
+      <div class="purchases ml-6 mr-6">
+        <div class="bg-white px-4 py-3 gap-x-4 flex font-bold">
+            <button class="flex flex-1 text-center justify-center" id="sorting-button-1">
+              <span>Name</span>
+              <i class="fa-solid fa-arrow-up-wide-short text-xl" id="sorting-icon-1"></i>
+            </button>
+            <span class="flex-1">Tickets number</span>
+            <span class="flex-1">Category</span>
+            <span class="flex-1 hidden md:flex">Date</span>
+           <button class="hidden md:flex text-center justify-center" id="sorting-button-2">
+            <span>Price</span>
+            <i class="fa-solid fa-arrow-up-wide-short text-xl" id="sorting-icon-2"></i>
+          </button>
+          <span class="w-28 sm:w-8"></span>
+        </div>
+        <div id="purchases-content">
+         </div>
+      </div>
     </div>
   `;
 }
@@ -61,30 +84,36 @@ function setupInitialPage() {
   renderContent(initialUrl);
 }
 
+
 function renderHomePage() {
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = getHomePageTemplate();
 
+  setUpFilterEvents();
+  addLoader();
+
   fetchTicketEvents().then(data =>{
-    addEvents(data);
-  });
+     addEvents(data);
+     eventData = data;
+     setTimeout(() =>{
+       removeLoader();
+     },200);
+   });
 
   }
 
   async function fetchTicketEvents(){
      const response =await fetch('https://localhost:44348/AllEvents');
-     
      const data =await response.json();
-     console.log('data',data);
      return data;
   }
 
   const addEvents = (events)=>{
     console.log(events);
     const eventsDiv = document.querySelector('.events');
-    events.innerHTML = 'No events';
+    eventsDiv.innerHTML = 'No events';
     if(events.length){
-      events.innerHTML = '';
+      eventsDiv.innerHTML ='';
       events.forEach((event) =>{
         eventsDiv.appendChild(createEvent(event));
       });
@@ -100,8 +129,9 @@ function renderHomePage() {
       
   };
 
-  const createEventElement = (eventData) => {
+    const createEventElement = (eventData) => {
     const title = kebabCase(eventData.name);
+    
     const {eventId,name,eventDescription,eventType,location} = eventData;
     const eventDiv = document.createElement('div');
     const eventWrapperClasses = useStyle('eventWrapper');
@@ -119,9 +149,9 @@ function renderHomePage() {
     <header>
       <h2 class="event-title text-2xl font-bold" style="text-align: center;">${eventData.name}</h2>
     </header>
-    <div class="content">
-      <img src="${eventData.img}" alt="${eventData.name}" class="event-image w-full height-200 rounded object-cover mb-4">
-      <p class="description text-gray-700">${eventData.eventDescription}</p>
+    <div style="text-align: center;" class="content" >
+      <img src="src/assets/${eventData.name.toLowerCase()}.jpg" width="300" height="200" alt="${eventData.name}" class="event-image w-full height-200 rounded object-cover mb-4" style="display: block; margin: 0 auto;">
+      <p class="description text-gray-700" style="font-size:20px">${eventData.eventDescription}</p>
     </div>
   `;
   eventDiv.innerHTML = contentMarkup;
@@ -134,8 +164,8 @@ function renderHomePage() {
   const ticketTypeMarkup = `
   <h2 class="text-lg font-bold mb-2">Choose Ticket Type</h2>
   <select id="ticketType" name="ticketType" class="select ${title}-ticket-type border">
-    <option value="standard" selected="selected" >Standard</option> 
-    <option value="vip" >VIP</option>
+    <option value="standard" selected="selected">Standard</option> 
+    <option value="vip">VIP</option>
   </select>
 `;
 
@@ -217,12 +247,14 @@ function renderHomePage() {
   addToCart.disabled = true;
 
   addToCart.addEventListener('click', () =>{
+    handleAddToCart(title,eventId,input,addToCart);
 
   });
 
   eventFooter.appendChild(addToCart);
   eventDiv.appendChild(eventFooter);
 
+  
   const eventCard = document.createElement('div');
   eventCard.classList.add('event-card'); 
   // Create the event content markup
@@ -236,9 +268,109 @@ function renderHomePage() {
   
 }
 
-function renderOrdersPage(categories) {
+
+const handleAddToCart = (title,eventId,input,addToCart) =>{
+  const ticketType = document.querySelector(`.${kebabCase(title)}-ticket-type`).value;
+  console.log("ticket", ticketType.value);
+  const quantity = input.value;
+  const ticketCategoryId = ticketType.toLowerCase() === "vip" ? 5 : 1
+  if(parseInt(quantity)){
+    addLoader();
+    fetch('http://localhost:8080/order',{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        eventId:eventId,
+        ticketCategoryId:+ticketCategoryId,
+        numberOfTickets:+quantity,
+      })
+      
+    }).then((response)=>{
+      return response.json().then((data)=>{
+        if(!response.ok){
+          console.log("Something went wrong!");
+        }
+        return data;
+      })
+    }).then((data)=>{
+      addPurchase(data);
+      console.log("Done");
+      input.value=0;
+      addToCart.disabled=true;
+    })
+    .finally(()=>{
+      removeLoader();
+    })
+
+  }else{}
+
+};
+
+//filtrarea
+function liveSearch(){
+  const filterInput = document.querySelector('#filter-name');
+
+  if(filterInput){
+    const searchValue = filterInput.value;
+
+    if(searchValue !== undefined){
+      const filteredEvents = eventData.filter((event) =>
+      event.name.toLowerCase().includes(searchValue.toLowerCase())
+      );
+      addEvents(filteredEvents);
+    }
+  }
+
+}
+
+function setUpFilterEvents(){
+  const nameFilterInput = document.querySelector('#filter-name');
+
+  if(nameFilterInput){
+    const filterInterval = 500;
+    nameFilterInput.addEventListener('keyup', ()=>{
+      setTimeout(liveSearch,filterInterval);
+    });
+  }
+}
+
+
+
+//Orders Page
+
+async function fetchOrders(){
+  const response =await fetch('https://localhost:44348/Orders');
+  const order =await response.json();
+  console.log('order',order);
+  return order;
+}
+
+
+
+function renderOrdersPage() {
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = getOrdersPageTemplate();
+  const purchaseDiv = document.querySelector('.purchases');
+  const purchasesContent = document.getElementById('purchases-content');
+  //addLoader();
+  if (purchaseDiv){
+    fetchOrders().then((orders)=>{
+      if(orders.length){
+        setTimeout(()=>{
+          removeLoader();
+        },200);
+        orders.forEach((order)=>{
+          const newOrder = createOrderItem(order);
+          purchasesContent.appendChild(newOrder);
+        });
+        purchaseDiv.appendChild(purchasesContent)
+      }else removeLoader();
+    })
+    //removeLoader();
+
+  }
 }
 
 // Render content based on URL
@@ -246,7 +378,7 @@ function renderContent(url) {
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = '';
 
-  if (url === '/') {// === reprezinta egalitate perfecta
+  if (url === '/') {
     renderHomePage();
   } else if (url === '/orders') {
     renderOrdersPage()
@@ -258,3 +390,4 @@ setupNavigationEvents();
 setupMobileMenuEvent();
 setupPopstateEvent();
 setupInitialPage();
+setUpFilterEvents();
