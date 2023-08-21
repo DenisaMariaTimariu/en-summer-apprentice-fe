@@ -2,13 +2,9 @@
 
 body {
   font-family: 'Cambria', sans-serif;
-  background-image: url('src\assets\background.jpg');
-  background-repeat: no-repeat;
+  background-image: url('/src/assets/background.jpg');
   background-size: cover;
-  background-position: center;
-
 }
-
 .events {
   /*display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -83,6 +79,11 @@ h1 {
 
 .main-content-component {
   margin-bottom: 10px;
+  font-family: 'Cambria', sans-serif;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+ 
   /*max-width: 100%;
   height: auto;*/
 }
@@ -132,7 +133,11 @@ h1 {
   width: 20%;
   top: 2%;
   left: 75%;
-  transform: translate(0%, 20%);
+  transform: translate(0%, 0%);
+}
+
+.md{
+  padding-left: 200px;
 }
 
 

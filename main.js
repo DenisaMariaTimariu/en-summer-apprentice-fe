@@ -31,13 +31,13 @@ function getOrdersPageTemplate() {
       <div class="purchases ml-6 mr-6">
         <div class="bg-white px-4 py-3 gap-x-4 flex font-bold">
             <button class="flex flex-1 text-center justify-center" id="sorting-button-1">
-              <span>Name</span>
+              <span>Order Id</span>
               <i class="fa-solid fa-arrow-up-wide-short text-xl" id="sorting-icon-1"></i>
             </button>
             <span class="flex-1">Tickets number</span>
             <span class="flex-1">Category</span>
             <span class="flex-1 hidden md:flex">Date</span>
-           <button class="hidden md:flex text-center justify-center" id="sorting-button-2">
+           <button class="hidden md:flex text-center justify-center align-items:center"  id="sorting-button-2">
             <span>Price</span>
             <i class="fa-solid fa-arrow-up-wide-short text-xl" id="sorting-icon-2"></i>
           </button>
@@ -130,8 +130,8 @@ function renderHomePage() {
   };
 
     const createEventElement = (eventData) => {
+
     const title = kebabCase(eventData.name);
-    
     const {eventId,name,eventDescription,eventType,location} = eventData;
     const eventDiv = document.createElement('div');
     const eventWrapperClasses = useStyle('eventWrapper');
@@ -144,6 +144,8 @@ function renderHomePage() {
     const addToCartBtnClasses = useStyle('addToCartBtn');
 
     eventDiv.classList.add(...eventWrapperClasses);
+
+   
 
     const contentMarkup = `
     <header>
@@ -269,11 +271,15 @@ function renderHomePage() {
 }
 
 
+
+
 const handleAddToCart = (title,eventId,input,addToCart) =>{
   const ticketType = document.querySelector(`.${kebabCase(title)}-ticket-type`).value;
-  console.log("ticket", ticketType.value);
+  console.log("value", ticketType);
   const quantity = input.value;
-  const ticketCategoryId = ticketType.toLowerCase() === "vip" ? 5 : 1
+  const ticketCategoryId = ticketType.toLowerCase() === "vip" ? 2 : 1
+
+ 
   if(parseInt(quantity)){
     addLoader();
     fetch('http://localhost:8080/order',{
@@ -305,6 +311,7 @@ const handleAddToCart = (title,eventId,input,addToCart) =>{
     })
 
   }else{}
+
 
 };
 
@@ -347,31 +354,65 @@ async function fetchOrders(){
   return order;
 }
 
+async function fetchTickets(){
+  const response =await fetch('https://localhost:44348/AllTickets');
+  const tickets =await response.json();
+  return tickets;
+}
 
 
-function renderOrdersPage() {
+
+function renderOrdersPage(categories) {
+  
   const mainContentDiv = document.querySelector('.main-content-component');
   mainContentDiv.innerHTML = getOrdersPageTemplate();
   const purchaseDiv = document.querySelector('.purchases');
   const purchasesContent = document.getElementById('purchases-content');
-  //addLoader();
+
+  const sortingButtonName = document.getElementById('sorting-button-1');
+  sortingButtonName.addEventListener('click', () => {
+    handleSort('name');
+  });
+
+  const sortingButtonByPrice = document.getElementById('sorting-button-2');
+  sortingButtonByPrice.addEventListener('click',() =>{
+    handleSort('totalPrice');
+  });
+
+  purchasesContent.addEventListener("delete", (e) => {
+    allOrders = allOrders.filter(order => order.orderId !=e.detail.id)
+  })
+
+  purchasesContent.addEventListener("update", (e) => {
+    allOrders = allOrders.map(element => {
+      if(element.id == e.detail.order.orderId){
+        return e.detail.order;
+      }
+      return element;
+    })
+  })
+  
+  addLoader();
   if (purchaseDiv){
     fetchOrders().then((orders)=>{
       if(orders.length){
         setTimeout(()=>{
           removeLoader();
         },200);
+       //const allOrders = [...orders];
         orders.forEach((order)=>{
-          const newOrder = createOrderItem(order);
+          const newOrder = createOrderItem(order,categories);
           purchasesContent.appendChild(newOrder);
-        });
+        
+      });
         purchaseDiv.appendChild(purchasesContent)
       }else removeLoader();
     })
-    //removeLoader();
-
   }
 }
+
+
+
 
 // Render content based on URL
 function renderContent(url) {
@@ -381,7 +422,13 @@ function renderContent(url) {
   if (url === '/') {
     renderHomePage();
   } else if (url === '/orders') {
-    renderOrdersPage()
+    fetchTickets()
+    .then((categories) => {
+      renderOrdersPage(categories);
+    })
+    .catch((error) => {
+      console.error('Error fetching ticket categories: ',error);
+    });
   }
 }
 

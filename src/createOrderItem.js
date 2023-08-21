@@ -1,13 +1,16 @@
 import { useStyle } from "./components/styles";
+import { addLoader, removeLoader } from "./loader";
 import { kebabCase } from "./utils";
+import { updateOrder } from "./updateOrder";
+import { deleteOrder } from "./deleteOrder";
 
-export const createOrderItem = (order) =>{
+export const createOrderItem = (order,categories) =>{
     const purchase = document.createElement('div');
-    purchase.id = `purchase-${order.orderId}`;
+    purchase.orderId = `purchase-${order.orderId}`;
     purchase.classList.add(...useStyle('purchase'));
 
     const purchaseTitle = createParagraph(...useStyle('purchaseTitle'));
-    purchaseTitle.innertext = "ceva";
+    purchaseTitle.innerText =order.orderId;
     purchase.appendChild(purchaseTitle);
 
     const purchaseQuantity = createInput(...useStyle('purchaseQuantity'));
@@ -25,34 +28,42 @@ export const createOrderItem = (order) =>{
     const purchaseType = createSelect(...useStyle('purchaseType'));
     purchaseType.setAttribute('disabled','true');
 
-   /* const categoriesOptions = categories.map(
-        (ticketCategory) =>
-        `<option class = "text-sm font-bold text-black" value=${ticketcategory.id}${
-            ticketCategory.id === order.tickets[0].ticketCategory.id ? 'selected' : ''
 
-        }>${ticketCategory.description}</option>`
-    ).join('\n');
-
+        const categoriesOptions = categories.map(
+            (ticketCategory) =>
+            `<option class="text-sm font-bold text-black" value="${ticketCategory.ticketCategoryId}" ${
+                ticketCategory.ticketCategoryId === order.ticketCategoryId ? 'selected' : ''
+            }>${ticketCategory.description}</option>`
+        ).join('\n');
+        
     purchaseType.innerHTML = categoriesOptions;
+    console.log(purchaseType);
     const purchaseTypeWrapper = createDiv(...useStyle('purchaseTypeWrapper'));
     purchaseTypeWrapper.append(purchaseType);
     purchase.appendChild(purchaseTypeWrapper);
-*/
+
+    
+    
+
+
     const purchaseDate = createDiv(...useStyle('purchaseDate'));
-    purchaseDate.innertext = new Date(order.orderedAt).toLocaleDateString();
+    purchaseDate.innerText = new Date(order.orderedAt).toLocaleDateString();
     purchase.appendChild(purchaseDate);
 
     const purchasePrice = createDiv(...useStyle('purchasePrice'));
-    purchasePrice.innertext = order.totalPrice;
+    purchasePrice.innerText = order.totalPrice;
     purchase.appendChild(purchasePrice);
 
     const actions = createDiv(...useStyle('actions'));
-/*
-    const editButton = createButton([...useStyle(['actionButton','editButton'])], '<i class="fa-solid fa-pencil"></i>', editHandler());
-    const saveButton = createButton([...useStyle(['actionButton','hiddenButton','saveButton'])], '<i class="fa-solid fa-check"></i>', saveHandler());
-    const cancelButton = createButton([...useStyle(['actionButton','hiddenButton','cancelButton'])], '<i class="fa-solid fa-xmark"></i>', cancelHandler());
-    const deleteButton = createButton([...useStyle(['actionButton','deleteButton'])], '<i class="fa-solid fa-thrash-can"></i>', deleteHandler());
-*/   
+    const cancelButton = createButton([...useStyle(['actionButton','hiddenButton','cancelButton'])], '<i class="fa-solid fa-xmark"></i>',cancelHandler);
+    const saveButton = createButton([...useStyle(['actionButton','hiddenButton','saveButton'])], '<i class="fa-solid fa-check"></i>', saveHandler);
+    const editButton = createButton([...useStyle(['actionButton','editButton'])], '<i class="fa-solid fa-pencil"></i>', editHandler); 
+    const deleteButton = createButton([...useStyle(['actionButton','deleteButton'])], '<i class="fa-solid fa-trash-can"></i>', deleteHandler);
+
+    actions.appendChild(cancelButton);
+    actions.appendChild(saveButton);
+    actions.appendChild(editButton);
+    actions.appendChild(deleteButton);
 
     purchase.appendChild(actions);
 
@@ -89,7 +100,7 @@ export const createOrderItem = (order) =>{
         return button;
     }
 
-  /*  function editHandler(){
+   function editHandler(){
         if (saveButton.classList.contains('hidden')&& cancelButton.classList.contains('hidden')){
             saveButton.classList.remove('hidden');
             cancelButton.classList.remove('hidden');
@@ -98,7 +109,7 @@ export const createOrderItem = (order) =>{
             editButton.classList.add('hidden');
         }
     }
-
+ 
     function cancelHandler(){
         saveButton.classList.add('hidden');
         cancelButton.classList.add('hidden');
@@ -106,6 +117,52 @@ export const createOrderItem = (order) =>{
         purchaseType.setAttribute('disabled','true');
         purchaseQuantity.setAttribute('disabled','true');
 
-    }*/
+        purchaseQuantity.value = order.numberOfTickets;
+        Array.from(purchaseType.options).forEach(function(element,index){
+            if(element.value == order.ticketCategoryId){
+                purchaseType.options.selectedIndex = index;
+                return;
+            }
+        });
+
+    }
+
+    function saveHandler(){
+        const newType = purchaseType.value;
+        const newQuantity = purchaseQuantity.value;
+
+        if(newType != order.ticketCategoryId || newQuantity != order.numberOfTickets){
+            addLoader();
+            updateOrder(order.orderId, newType, newQuantity)
+            .then((res) => {
+                if(res.status === 200){
+                    res.json().then((data)=>{
+                        order = data;
+                        purchasePrice.innerHTML = order.totalPrice;
+                        purchaseDate.innerHTML = new Date(order.orderedAt).toLocaleDateString();
+
+                    });
+                }
+            })
+            .catch((err) =>{
+                console.error(err);
+
+            })
+            .finally(()=>{
+                setTimeout(()=>{
+                    removeLoader();
+                })
+
+            });
+        }
+
+
+    }
+
+    function deleteHandler(){
+        deleteOrder(order.orderId);
+    }
+
+
     return purchase;
 };

@@ -12,7 +12,7 @@ const bookOfStyle = {
     
     ],
     
-    purchaseTitle: ['text-lg', 'font-medium', 'text-gray-900','flex-1'],
+    purchaseTitle: ['text-lg', 'font-medium', 'text-gray-900','flex-1','ml-20'],
     
     purchaseQuantity: [
       'w-[50px]',
